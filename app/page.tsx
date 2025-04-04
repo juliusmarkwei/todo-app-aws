@@ -1,103 +1,216 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
+
+interface Todo {
+    id: string;
+    title: string;
+    completed: boolean;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    const [todos, setTodos] = useState<Todo[]>([]);
+    const [newTodo, setNewTodo] = useState("");
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    // Fetch todos on mount
+    useEffect(() => {
+        fetchTodosInitial();
+    }, []);
+
+    const fetchTodosInitial = async () => {
+        toast.promise(
+            fetch("/api/todos")
+                .then((res) => res.json())
+                .then((data) => {
+                    setTodos(data.todos);
+                }),
+            {
+                loading: "Fetching todos...",
+                success: "Todos fetched successfully!",
+                error: "Failed to fetch todos.",
+            }
+        );
+    };
+
+    const fetchTodos = async () => {
+        const response = await fetch("/api/todos");
+        if (response.ok) {
+            const data = await response.json();
+            setTodos(data.todos);
+        }
+    };
+
+    const addTodo = async (
+        e: React.KeyboardEvent<HTMLInputElement>
+    ): Promise<void> => {
+        if (e.key === "Enter" && newTodo.trim()) {
+            toast
+                .promise(
+                    fetch("/api/todos", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: newTodo.trim() }),
+                    }).then((res) => res.json()),
+                    {
+                        loading: "Adding todo...",
+                        success: "Todo added successfully!",
+                        error: "Failed to add todo.",
+                    }
+                )
+                .then((todo: Todo) => {
+                    setNewTodo("");
+                    fetchTodos();
+                });
+        }
+    };
+
+    const toggleTodo = async (
+        id: string,
+        title: string,
+        completed: boolean
+    ): Promise<void> => {
+        toast
+            .promise(
+                fetch("/api/todos", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id, title, completed: !completed }),
+                }).then((res) => res.json()),
+                {
+                    loading: "Updating todo...",
+                    success: "Todo updated successfully!",
+                    error: "Failed to update todo.",
+                }
+            )
+            .then((updatedTodo: Todo) => {
+                fetchTodos();
+            });
+    };
+
+    const deleteTodo = async (id: string) => {
+        toast
+            .promise(
+                fetch("/api/todos", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id }),
+                }),
+                {
+                    loading: "Deleting todo...",
+                    success: "Todo deleted successfully!",
+                    error: "Failed to delete todo.",
+                }
+            )
+            .then(() => {
+                fetchTodos();
+            });
+    };
+
+    const startEditing = (id: string, title: string) => {
+        setEditingId(id);
+        setEditTitle(title);
+    };
+
+    const saveEdit = async (id: string, completed: boolean) => {
+        if (editTitle.trim()) {
+            toast
+                .promise(
+                    fetch("/api/todos", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id,
+                            title: editTitle.trim(),
+                            completed,
+                        }),
+                    }).then((res) => res.json()),
+                    {
+                        loading: "Saving changes...",
+                        success: "Todo updated successfully!",
+                        error: "Failed to update todo.",
+                    }
+                )
+                .then(() => {
+                    fetchTodos();
+                    setEditTitle("");
+                    setEditingId(null);
+                });
+        }
+        setEditingId(null);
+    };
+
+    return (
+        <div className="todoapp">
+            <header className="header">
+                <h1>todos</h1>
+                <input
+                    className="new-todo"
+                    placeholder="What needs to be done?"
+                    value={newTodo}
+                    onChange={(e) => setNewTodo(e.target.value)}
+                    onKeyDown={addTodo}
+                    autoFocus
+                />
+            </header>
+            <section className="main">
+                <ul className="todo-list">
+                    {todos.map((todo) => (
+                        <li
+                            key={todo.id}
+                            className={todo.completed ? "completed" : ""}
+                        >
+                            <div className="view">
+                                <input
+                                    className="toggle"
+                                    type="checkbox"
+                                    checked={todo.completed}
+                                    onChange={() =>
+                                        toggleTodo(
+                                            todo.id,
+                                            todo.title,
+                                            todo.completed
+                                        )
+                                    }
+                                />
+                                {editingId === todo.id ? (
+                                    <input
+                                        className="edit"
+                                        value={editTitle}
+                                        onChange={(e) =>
+                                            setEditTitle(e.target.value)
+                                        }
+                                        onKeyDown={(e) =>
+                                            e.key === "Enter" &&
+                                            saveEdit(todo.id, todo.completed)
+                                        }
+                                        onBlur={() =>
+                                            saveEdit(todo.id, todo.completed)
+                                        }
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <label
+                                        onDoubleClick={() =>
+                                            startEditing(todo.id, todo.title)
+                                        }
+                                    >
+                                        {todo.title}
+                                    </label>
+                                )}
+                                <button
+                                    className="destroy"
+                                    onClick={() => deleteTodo(todo.id)}
+                                >
+                                    x
+                                </button>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </section>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
