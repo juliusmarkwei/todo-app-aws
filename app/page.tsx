@@ -143,7 +143,7 @@ export default function Home() {
     };
 
     return (
-        <div className="todoapp">
+        <div className="todoapp h-dvh w-dvw relative">
             <header className="header">
                 <h1>todos</h1>
                 <input
@@ -211,6 +211,19 @@ export default function Home() {
                     ))}
                 </ul>
             </section>
+            <footer className="info">
+                <p>Double-click to edit a todo</p>
+                <p>
+                    Made with ❤️ by
+                    <a href="http://github.com/juliusmarkwei">
+                        {" "}
+                        0x0is1watchmaker$$
+                    </a>
+                </p>
+                <p>
+                    Inspired by <a href="http://todomvc.com">TodoMVC</a>
+                </p>
+            </footer>
         </div>
     );
 }
